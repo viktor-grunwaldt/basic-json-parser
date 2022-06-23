@@ -106,12 +106,8 @@ where
 //     map(parser, Jval::Int)(i)
 // }
 
-fn is_normal_char(c:char) -> bool {
-    ' ' <= c && '\"' != c && '\\' != c
-}
-
 fn p_char<'a, E: ParseError<&'a str>>(i:&'a str) -> IResult<&'a str, &'a str, E> {
-    take_while1(is_normal_char)(i)
+    take_while1(|c| ' ' <= c && '\"' != c && '\\' != c)(i)
 }
 
 // fn p_esc_char<'a, E: ParseError<&'a str>>(i:&'a str) -> IResult<&'a str, &'a str, E> {
@@ -191,7 +187,17 @@ where
 }
 
 fn main() {
-    println!("Hello, world!");
+    let json_inp = r#"{"Person" : {
+        "name": "Adam",
+        "age": 19,
+        "fav_lang": "rust!"
+    }}"#;
+    if let Ok(json) = p_value::<()>(json_inp){
+        dbg!(json);
+    }
+    else {
+        println!("An error occured while parsing json");
+    }
 }
 
 #[cfg(test)]
@@ -221,27 +227,27 @@ mod tests {
 
     #[test]
     fn test_float() {
-        assert_eq!(p_float::<()>("69"),       Ok(("", Jval::Float(69.0))));
-        assert_eq!(p_float::<()>("-420e-3"),     Ok(("", Jval::Float(-0.42))));
-        assert_eq!(p_float::<()>("01.5"), Ok(("", Jval::Float(1.5))));
-        assert_eq!(p_float::<()>("fatrue"),  Err(nom::Err::Error(())));
+        assert_eq!(p_float::<()>("69"),         Ok(("", Jval::Float(69.0))));
+        assert_eq!(p_float::<()>("-420e-3"),    Ok(("", Jval::Float(-0.42))));
+        assert_eq!(p_float::<()>("01.5"),       Ok(("", Jval::Float(1.5))));
+        assert_eq!(p_float::<()>("fatrue"),     Err(nom::Err::Error(())));
     }
 
     #[test]
     fn test_string() {
         // Plain Unicode strings with no escaping
-        assert_eq!(p_str::<()>(r#""""#), Ok(("", Jval::Str("".into()))));
-        assert_eq!(p_str::<()>(r#""Hello""#), Ok(("", Jval::Str("Hello".into()))));
-        assert_eq!(p_str::<()>(r#""の""#), Ok(("", Jval::Str("の".into()))));
-        assert_eq!(p_str::<()>(r#""𝄞""#), Ok(("", Jval::Str("𝄞".into()))));
+        assert_eq!(p_str::<()>(r#""""#),        Ok(("", Jval::Str("".into()))));
+        assert_eq!(p_str::<()>(r#""Hello""#),   Ok(("", Jval::Str("Hello".into()))));
+        assert_eq!(p_str::<()>(r#""の""#),       Ok(("", Jval::Str("の".into()))));
+        assert_eq!(p_str::<()>(r#""𝄞""#),       Ok(("", Jval::Str("𝄞".into()))));
 
         // valid 2-character escapes
         assert_eq!(p_str::<()>(r#""  \\  ""#), Ok(("", Jval::Str("  \\  ".into()))));
         assert_eq!(p_str::<()>(r#""  \"  ""#), Ok(("", Jval::Str("  \"  ".into()))));
 
         // valid 6-character escapes
-        assert_eq!(p_str::<()>(r#""\u0000""#), Ok(("", Jval::Str("\x00".into()))));
-        assert_eq!(p_str::<()>(r#""\u00DF""#), Ok(("", Jval::Str("ß".into()))));
+        assert_eq!(p_str::<()>(r#""\u0000""#),       Ok(("", Jval::Str("\x00".into()))));
+        assert_eq!(p_str::<()>(r#""\u00DF""#),       Ok(("", Jval::Str("ß".into()))));
         assert_eq!(p_str::<()>(r#""\uD834\uDD1E""#), Ok(("", Jval::Str("𝄞".into()))));
 
         // Invalid because surrogate characters must come in pairs
